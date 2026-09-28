@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fpasswords - Crea tu contraseña en minutos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            darkBg: '#13151a',
+            inputBg: '#292929',
+            inputBorder: '#3e3e3e',
+          }
+        }
+      }
+    }
+  </script>
+  <!-- React 18 & ReactDOM & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* Custom slider thumb styling */
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
+      border: none;
+    }
+  </style>
+</head>
+
+<body
+  class="bg-[#13151a] min-h-screen text-white font-sans antialiased selection:bg-blue-600 selection:text-white flex flex-col justify-center items-center px-4">
+
+  <div id="root" class="w-full flex justify-center items-center"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    function App() {
+      const [length, setLength] = useState(30);
+      const [password, setPassword] = useState('');
+      const [copied, setCopied] = useState(false);
+      const [aiGenerating, setAiGenerating] = useState(false);
+
+      // Switch states
+      const [switches, setSwitches] = useState({
+        uppercase: false,
+        lowercase: false,
+        numbers: false,
+        symbols: false,
+        todo: true
+      });
+
+      // Character Sets - Matching original copy.js logic
+      const CHAR_SETS = {
+        uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        lowercase: "abcdefghijklmnopqrstuvwxyz",
+        numbers: "1234567890",
+        symbols: "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+        todo: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$*"
+      };
+
+      const randomChoice = (str) => str[Math.floor(Math.random() * str.length)];
+
+      const generatePassword = useCallback((currentSwitches = switches, currentLength = length) => {
+        let pool = '';
+        if (currentSwitches.todo) {
+          pool += CHAR_SETS.todo;
+        } else {
+          if (currentSwitches.uppercase) pool += CHAR_SETS.uppercase;
+          if (currentSwitches.lowercase) pool += CHAR_SETS.lowercase;
+          if (currentSwitches.numbers) pool += CHAR_SETS.numbers;
+          if (currentSwitches.symbols) pool += CHAR_SETS.symbols;
+        }
+
+        if (!pool) {
+          pool = CHAR_SETS.todo;
+        }
+
+        let result = '';
+        for (let i = 0; i < currentLength; i++) {
+          result += randomChoice(pool);
+        }
+        setPassword(result);
+      }, [switches, length]);
+
+      // Generate initial password on mount
+      useEffect(() => {
+        generatePassword();
+      }, []);
+
+      // Handle Switch Toggles matching original copy.js logic 1-to-1
+      const handleToggle = (key) => {
+        var updatedSwitches = {
+          uppercase: switches.uppercase,
+          lowercase: switches.lowercase,
+          numbers: switches.numbers,
+          symbols: switches.symbols,
+          todo: switches.todo
+        };
+
+        if (key === 'todo') {
+          var targetTodo = !switches.todo;
+          if (targetTodo) {
+            updatedSwitches.uppercase = false;
+            updatedSwitches.lowercase = false;
+            updatedSwitches.numbers = false;
+            updatedSwitches.symbols = false;
+            updatedSwitches.todo = true;
+          } else {
+            updatedSwitches.uppercase = true;
+            updatedSwitches.lowercase = true;
+            updatedSwitches.numbers = true;
+            updatedSwitches.symbols = true;
+            updatedSwitches.todo = false;
+          }
+        } else {
+          updatedSwitches[key] = !switches[key];
+
+          var allFourChecked = updatedSwitches.uppercase && updatedSwitches.lowercase && updatedSwitches.numbers && updatedSwitches.symbols;
+
+          if (allFourChecked) {
+            updatedSwitches.uppercase = false;
+            updatedSwitches.lowercase = false;
+            updatedSwitches.numbers = false;
+            updatedSwitches.symbols = false;
+            updatedSwitches.todo = true;
+          } else {
+            updatedSwitches.todo = false;
+            var noneChecked = !updatedSwitches.uppercase && !updatedSwitches.lowercase && !updatedSwitches.numbers && !updatedSwitches.symbols;
+            if (noneChecked) {
+              updatedSwitches.todo = true;
+            }
+          }
+        }
+
+        setSwitches(updatedSwitches);
+        generatePassword(updatedSwitches, length);
+      };
+
+      // Handle Length Slider & Number Input
+      const handleLengthChange = (val) => {
+        let numVal = parseInt(val, 10);
+        if (isNaN(numVal)) numVal = 10;
+        if (numVal > 30) numVal = 30;
+        if (numVal < 10 && val !== '') numVal = 10;
+
+        setLength(numVal);
+        generatePassword(switches, numVal);
+      };
+
+      // Copy to clipboard
+      const handleCopy = () => {
+        if (!password) return;
+        navigator.clipboard.writeText(password).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {
+          const input = document.getElementById("textF");
+          if (input) {
+            input.select();
+            document.execCommand("copy");
+            input.blur();
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        });
+      };
+
+      // Gemini AI click
+      const handleGeminiClick = () => {
+        setAiGenerating(true);
+        generatePassword(switches, length);
+        setTimeout(() => setAiGenerating(false), 600);
+      };
+
+      return (
+        <div className="flex flex-col items-center justify-center px-2 sm:px-4 w-full max-w-4xl mx-auto">
+
+          {/* Title - Dynamic vh-based size so it looks big but never causes scroll */}
+          <h1 className="flex justify-center pb-1 font-extrabold tracking-tight text-center" style={{ fontSize: 'clamp(2rem, 13vh, 13rem)', lineHeight: '1.05' }}>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r to-emerald-600 from-sky-400">
+              Fpasswords
+            </span>
+          </h1>
+          <h6 className="flex text-gray-300 justify-center pb-0 text-sm font-normal text-center">
+            Crea tu contraseña en minutos
+          </h6>
+
+          {/* Password Display Container */}
+          <div className="flex items-center justify-between pt-2 pb-2 w-80 sm:w-88 md:w-96 relative mx-auto">
+            <input
+              id="textF"
+              type="text"
+              readOnly
+              value={password}
+              placeholder="********************************"
+              className="bg-[#292929] border-2 border-[#3e3e3e] rounded-lg text-white flex-1 min-w-0 p-3 text-sm sm:text-base hover:border-white focus:border-white focus:outline-none cursor-pointer transition font-mono shadow-inner tracking-wider"
+              onClick={handleCopy}
+            />
+
+            {/* Copy Button */}
+            <button
+              type="button"
+              onClick={handleCopy}
+              title="Copiar"
+              className="p-3 ms-2.5 text-sm font-medium text-white bg-blue-700 rounded-lg border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 flex-shrink-0 transition active:scale-95 shadow-md"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="icon icon-tabler icon-tabler-copy w-6 h-6" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+                <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+              </svg>
+              <span className="sr-only">Copiar</span>
+            </button>
+
+            {/* Regenerate Button */}
+            <button
+              type="button"
+              id="regenerateButton"
+              onClick={() => generatePassword(switches, length)}
+              title="Regenerar"
+              className="p-3 ms-2 text-sm font-medium text-white bg-blue-700 rounded-lg border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 flex-shrink-0 transition active:scale-95 shadow-md"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="icon icon-tabler icon-tabler-refresh w-6 h-6" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+              </svg>
+              <span className="sr-only">Regenerar</span>
+            </button>
+
+            {/* Copied Feedback Toast */}
+            {copied && (
+              <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-3.5 py-1.5 rounded-md shadow-lg animate-bounce font-medium z-10">
+                ¡Copiado al portapapeles!
+              </div>
+            )}
+          </div>
+
+          {/* Customizer Card - Original Flowbite Switch Elements */}
+          <div className="flex justify-center w-80 sm:w-88 md:w-96">
+            <div className="w-80 sm:w-88 md:w-96 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex justify-center items-center p-3">
+              <div className="flex flex-col gap-1.5 w-full">
+
+                {/* Card Section Header */}
+                <label htmlFor="default-range" className="flex px-1 text-xs font-bold text-blue-500">
+                  Personaliza tu contraseña
+                </label>
+
+                {/* Range Slider */}
+                <input
+                  id="default-range"
+                  type="range"
+                  min="10"
+                  max="30"
+                  value={length}
+                  onChange={(e) => handleLengthChange(e.target.value)}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                />
+
+                {/* Number Input Box */}
+                <input
+                  type="number"
+                  id="valor-numero"
+                  min="10"
+                  max="30"
+                  value={length}
+                  onChange={(e) => handleLengthChange(e.target.value)}
+                  className="w-16 px-2 py-1 text-sm bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500 text-center font-bold"
+                />
+
+                {/* Toggle: Solo Mayúsculas */}
+                <label className="flex items-center justify-between px-1 py-0.5 text-slate-300 text-sm font-medium select-none hover:text-white transition-colors cursor-pointer">
+                  <span>Solo Mayúsculas</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input id="uppercaseCheckbox" type="checkbox" checked={switches.uppercase} onChange={() => handleToggle('uppercase')} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+
+                {/* Toggle: Solo Minúsculas */}
+                <label className="flex items-center justify-between px-1 py-0.5 text-slate-300 text-sm font-medium select-none hover:text-white transition-colors cursor-pointer">
+                  <span>Solo Minúsculas</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input id="lowercaseCheckbox" type="checkbox" checked={switches.lowercase} onChange={() => handleToggle('lowercase')} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+
+                {/* Toggle: Solo Numeros */}
+                <label className="flex items-center justify-between px-1 py-0.5 text-slate-300 text-sm font-medium select-none hover:text-white transition-colors cursor-pointer">
+                  <span>Solo Numeros</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input id="numbersCheckbox" type="checkbox" checked={switches.numbers} onChange={() => handleToggle('numbers')} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+
+                {/* Toggle: Solo Símbolos */}
+                <label className="flex items-center justify-between px-1 py-0.5 text-slate-300 text-sm font-medium select-none hover:text-white transition-colors cursor-pointer">
+                  <span>Solo Símbolos</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input id="simbolsCheckbox" type="checkbox" checked={switches.symbols} onChange={() => handleToggle('symbols')} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+
+                {/* Toggle: Todo */}
+                <label className="flex items-center justify-between px-1 py-0.5 text-slate-300 text-sm font-medium select-none hover:text-white transition-colors cursor-pointer">
+                  <span>Todo</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input id="todoCheckbox" type="checkbox" checked={switches.todo} onChange={() => handleToggle('todo')} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+
+                {/* AI Section Header */}
+                <label className="flex mt-1 px-1 text-xs font-medium text-blue-500">
+                  Crea contraseñas con IA
+                </label>
+
+                {/* Gemini Button */}
+                <span className="flex items-center justify-center">
+                  <button
+                    id="ia"
+                    type="button"
+                    onClick={handleGeminiClick}
+                    className={`brightness-100 group hover:shadow-lg hover:shadow-blue-600/40 transition-all duration-300 hover:scale-105 p-[2px] rounded-xl bg-gradient-to-br from-[#D96570] via-blue-600 to-[#D96570] hover:from-blue-600 hover:via-blue-600 hover:to-blue-600 active:scale-95 ${aiGenerating ? 'animate-pulse scale-105' : ''}`}
+                  >
+                    <div className="px-6 py-2.5 backdrop-blur-xl bg-black/80 rounded-xl font-bold">
+                      <div className="group-hover:scale-100 flex items-center group-hover:text-blue-400 text-[#D96570] gap-3 text-sm transition-colors">
+                        <svg
+                          className={`w-6 h-6 flex-shrink-0 transition-transform ${aiGenerating ? 'rotate-180 duration-500' : ''}`}
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          preserveAspectRatio="xMidYMid"
+                          viewBox="0 0 256 256"
+                        >
+                          <defs>
+                            <radialGradient
+                              id="a"
+                              cx="78.302%"
+                              cy="55.52%"
+                              r="78.115%"
+                              fx="78.302%"
+                              fy="55.52%"
+                              gradientTransform="scale(.99947 1) rotate(78.858 .783 .555)"
+                            >
+                              <stop offset="0%" stopColor="#1BA1E3"></stop>
+                              <stop offset=".01%" stopColor="#1BA1E3"></stop>
+                              <stop offset="30.022%" stopColor="#5489D6"></stop>
+                              <stop offset="54.552%" stopColor="#9B72CB"></stop>
+                              <stop offset="82.537%" stopColor="#D96570"></stop>
+                              <stop offset="100%" stopColor="#F49C46"></stop>
+                            </radialGradient>
+                            <radialGradient
+                              id="b"
+                              cx="-3.409%"
+                              cy="-54.219%"
+                              r="169.363%"
+                              fx="-3.409%"
+                              fy="-54.219%"
+                              gradientTransform="scale(.99946 1) rotate(78.858 -.034 -.542)"
+                            >
+                              <stop offset="0%" stopColor="#1BA1E3"></stop>
+                              <stop offset=".01%" stopColor="#1BA1E3"></stop>
+                              <stop offset="30.022%" stopColor="#5489D6"></stop>
+                              <stop offset="54.552%" stopColor="#9B72CB"></stop>
+                              <stop offset="82.537%" stopColor="#D96570"></stop>
+                              <stop offset="100%" stopColor="#F49C46"></stop>
+                            </radialGradient>
+                          </defs>
+                          <path
+                            fill="url(#a)"
+                            d="m122.062 172.77-10.27 23.52c-3.947 9.042-16.459 9.042-20.406 0l-10.27-23.52c-9.14-20.933-25.59-37.595-46.108-46.703L6.74 113.52c-8.987-3.99-8.987-17.064 0-21.053l27.385-12.156C55.172 70.97 71.917 53.69 80.9 32.043L91.303 6.977c3.86-9.303 16.712-9.303 20.573 0l10.403 25.066c8.983 21.646 25.728 38.926 46.775 48.268l27.384 12.156c8.987 3.99 8.987 17.063 0 21.053l-28.267 12.547c-20.52 9.108-36.97 25.77-46.109 46.703Z"
+                          ></path>
+                          <path
+                            fill="url(#b)"
+                            d="m217.5 246.937-2.888 6.62c-2.114 4.845-8.824 4.845-10.937 0l-2.889-6.62c-5.148-11.803-14.42-21.2-25.992-26.34l-8.898-3.954c-4.811-2.137-4.811-9.131 0-11.269l8.4-3.733c11.87-5.273 21.308-15.017 26.368-27.22l2.966-7.154c2.067-4.985 8.96-4.985 11.027 0l2.966 7.153c5.06 12.204 14.499 21.948 26.368 27.221l8.4 3.733c4.812 2.138 4.812 9.132 0 11.27l-8.898 3.953c-11.571 5.14-20.844 14.537-25.992 26.34Z"
+                          ></path>
+                        </svg>
+                        Gemini
+                      </div>
+                    </div>
+                  </button>
+                </span>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+      );
+    }
+
+    const rootElement = document.getElementById('root');
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+  </script>
+</body>
+
+</html>
